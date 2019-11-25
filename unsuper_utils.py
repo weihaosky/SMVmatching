@@ -303,7 +303,7 @@ def evaluate_kitti(model, imgL, imgR, gt_occ, gt_noc, args, maxd=160):
 
     disp = output.squeeze()[top_pad:, :-left_pad]
 
-    if gt_noc == None:
+    if gt_noc.any() == None:
         return disp.cpu().numpy()
 
     gt_occ = torch.from_numpy(gt_occ).float()
