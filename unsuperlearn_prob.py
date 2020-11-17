@@ -20,8 +20,8 @@ import skimage.transform
 from dataloader import datalist as ls
 from dataloader import loader as DA
 from dataloader import preprocess, readpfm
-from models import *
-from unsuper_utils import criterion1, criterion2, criterion3, criterion4, \
+from models import stackhourglass_prob
+from unsuper_prob_utils import criterion1_prob, criterion2, criterion3, criterion4, \
                           evaluate, evaluate_kitti, predict,    \
                           WrappedModel
 import IPython, cv2, glob, copy
@@ -36,7 +36,7 @@ def train(imgL, imgC, imgR, args, Test=False):
         optimizer.zero_grad()
     else:
         model.eval()
-        
+
     if args.cuda:
         imgL, imgR, imgC = \
                 imgL.cuda(), imgR.cuda(), imgC.cuda()
@@ -46,23 +46,28 @@ def train(imgL, imgC, imgR, args, Test=False):
 
     if args.model == 'stackhourglass':
         if not Test:
-            outputR_pred1, outputR_pred2, outputR = model(imgC, imgR, args.maxdisp)
-            outputL_rot_pred1, outputL_rot_pred2, outputL_rot = model(imgC_rot, imgL_rot, args.maxdisp)
-            outputL = outputL_rot.flip(1).flip(2)  
+            outputR_pred1, outputR_pred2, outputR, outputR_var = model(imgC, imgR, args.maxdisp)
+            outputL_rot_pred1, outputL_rot_pred2, outputL_rot, outputL_var_rot = model(imgC_rot, imgL_rot, args.maxdisp)
+            outputL = outputL_rot.flip(1).flip(2) 
+            outputL_var = outputL_var_rot.flip(1).flip(2)  
         else:
-            outputR, _, outputR_pred1, outputR_pred2 = model(imgC, imgR, 160)
-            outputL_rot, _, outputL_rot_pred1, outputL_rot_pred2 = model(imgC_rot, imgL_rot, 160)
+            outputR, outputR_var, outputR_pred1, outputR_pred2 = model(imgC, imgR, 208)
+            outputL_rot, outputL_var_rot, outputL_rot_pred1, outputL_rot_pred2 = model(imgC_rot, imgL_rot, 160)
             outputL = outputL_rot.flip(1).flip(2)
+            outputL_var = outputL_var_rot.flip(1).flip(2) 
             
     elif args.model == 'basic':
         outputR = model(imgC, imgR, args.maxdisp)
+        # outputR = torch.unsqueeze(outputR, 1)
         outputL_rot = model(imgC_rot, imgL_rot, args.maxdisp)
+        # outputL_rot = torch.unsqueeze(outputL_rot, 1)
         outputL = outputL_rot.flip(1).flip(2)
 
-    loss2 = criterion2(outputR, outputL)
+    loss2 = criterion2(outputR, outputL, outputR_var, outputL_var)
     
     # appearance loss
-    loss1, imgR2C, imgL2C, _, _ = criterion1(imgC, imgR, imgL, outputR, outputL, args.maxdisp, args=args, down_factor=1) 
+    loss1, loss4, imgR2C, imgL2C, _, _ = criterion1_prob(
+            imgC, imgR, imgL, outputR, outputR_var, outputL, outputL_var, args.maxdisp, args=args) 
 
     loss3 = (criterion3(outputR, imgC) + criterion3(outputL, imgC)) / 2
 
@@ -70,14 +75,14 @@ def train(imgL, imgC, imgR, args, Test=False):
     loss1 = loss_w[0] * loss1
     loss2 = loss_w[1] * loss2
     loss3 = loss_w[2] * loss3
-    loss4 = loss_w[3] * 0
+    # loss4 = loss_w[3] * loss4
     loss = loss1 + loss2 + loss3 + loss4
 
     if not Test:
         loss.backward()
         optimizer.step()
 
-    return loss.data.item(), loss1.data.item(), loss2.data.item(), loss3.data.item(), loss4
+    return loss.data.item(), loss1.data.item(), loss2.data.item(), loss3.data.item(), loss4.data.item()
 
 
 if __name__ == '__main__':
@@ -89,7 +94,7 @@ if __name__ == '__main__':
                         help='test data set path')
     parser.add_argument('--evalpath', default='dataset/EVAL/',
                         help='evaluate data set path')
-    parser.add_argument('--model', default='basic',
+    parser.add_argument('--model', default='stackhourglass',
                         help='select model')
     parser.add_argument('--batch_size', type=int, default=4,
                         help='batch size')
@@ -130,7 +135,7 @@ if __name__ == '__main__':
         os.makedirs(output_path + 'eval/')
 
     if args.model == 'stackhourglass':
-        model = stackhourglass(args.maxdisp)
+        model = stackhourglass_prob(args.maxdisp)
     elif args.model == 'basic':
         model = basic(args.maxdisp)
     else:
@@ -221,11 +226,11 @@ if __name__ == '__main__':
                     total_train_loss3/len(TrainImgLoader),
                     total_train_loss4/len(TrainImgLoader)]
         train_loss_record.append(loss_mean)
-        print('epoch %d mean training loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, time = %.2f'
-                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], time_epoch/len(TrainImgLoader)) )
+        print('epoch %d mean training loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, loss4 = %.3f, time = %.2f'
+                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], loss_mean[4], time_epoch/len(TrainImgLoader)) )
         with open(log_path + "loss.log", "a") as file:
-            file.write('epoch %d mean training loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, time = %.2f \n'
-                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], time_epoch/len(TrainImgLoader)))
+            file.write('epoch %d mean training loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, loss4 = %.3f, time = %.2f \n'
+                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], loss_mean[4], time_epoch/len(TrainImgLoader)))
         
         # ======================== Test ==========================
         if epoch % Test_epoch == 0:
@@ -238,25 +243,21 @@ if __name__ == '__main__':
                 total_test_loss2 += test_loss2
                 total_test_loss3 += test_loss3
                 total_test_loss4 += test_loss4
+                torch.cuda.empty_cache()
             loss_mean = [total_test_loss/len(TestImgLoader), 
                         total_test_loss1/len(TestImgLoader),
                         total_test_loss2/len(TestImgLoader),
                         total_test_loss3/len(TestImgLoader),
                         total_test_loss4/len(TestImgLoader)]
             test_loss_record.append(loss_mean)
-            print('epoch %d test loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f'
-                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3]) )
+            print('epoch %d test loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, loss4 = %.3f'
+                % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], loss_mean[4]) )
             with open(log_path + "loss.log", "a") as file:
-                file.write('epoch %d test loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f \n'
-                    % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3]) )
+                file.write('epoch %d test loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f, loss4 = %.3f \n'
+                    % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], loss_mean[4]))
 
         if epoch % 10 == 0:
             torch.save(model.state_dict(), log_path + 'model' + str(epoch) + '.pth')
 
 
-
-
-    
-
-
-
+        

@@ -7,16 +7,19 @@ import torch.nn.functional as F
 import math
 import numpy as np
 
+
 def convbn(in_planes, out_planes, kernel_size, stride, pad, dilation):
 
     return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=dilation if dilation > 1 else pad, dilation = dilation, bias=False),
                          nn.BatchNorm2d(out_planes))
 
 
+
 def convbn_3d(in_planes, out_planes, kernel_size, stride, pad):
 
     return nn.Sequential(nn.Conv3d(in_planes, out_planes, kernel_size=kernel_size, padding=pad, stride=stride,bias=False),
                          nn.BatchNorm3d(out_planes))
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -42,6 +45,7 @@ class BasicBlock(nn.Module):
 
         return out
 
+
 class matchshifted(nn.Module):
     def __init__(self):
         super(matchshifted, self).__init__()
@@ -52,6 +56,7 @@ class matchshifted(nn.Module):
         shifted_right = F.pad(torch.index_select(right, 3, Variable(torch.LongTensor([i for i in range(width-shift)])).cuda()),(shift,0,0,0))
         out = torch.cat((shifted_left,shifted_right),1).view(batch,filters*2,1,height,width)
         return out
+
 
 class disparityregression(nn.Module):
     def __init__(self, maxdisp):
@@ -64,6 +69,39 @@ class disparityregression(nn.Module):
         disp = self.disp.repeat(x.size()[0],1,x.size()[2],x.size()[3])
         out = torch.sum(x*disp,1)
         return out
+
+
+class disparityregression_var(nn.Module):
+    def __init__(self, maxdisp):
+        super(disparityregression_var, self).__init__()
+        self.disp = Variable(torch.Tensor(np.reshape(np.array(range(maxdisp)),[1,maxdisp,1,1])), requires_grad=False)
+
+    def forward(self, x):
+        if(x.is_cuda):
+            self.disp = self.disp.cuda()
+        disp = self.disp.repeat(x.size()[0],1,x.size()[2],x.size()[3])
+        out = torch.sum(x*disp,1)
+
+        with torch.no_grad():
+            var = torch.gather(x, 1, out.round().long().unsqueeze(1))
+
+        return out, var.squeeze(1)
+
+
+class var_regression(nn.Module):
+    def __init__(self, maxdisp):
+        super(var_regression, self).__init__()
+        self.maxdisp = maxdisp
+        # self.var = nn.Sequential(convbn(maxdisp, 32, 3, 1, 1, 1),
+        #                               nn.ReLU(inplace=True),
+        #                               nn.Conv2d(32, 1, kernel_size=3, padding=1, stride=1,bias=False))
+        self.var = nn.Sequential(nn.Conv2d(maxdisp, 1, kernel_size=3, padding=1, stride=1, bias=False))
+    
+    def forward(self, x):
+        if(x.is_cuda):
+            self.var = self.var.cuda()
+        return self.var(x)
+
 
 class feature_extraction(nn.Module):
     def __init__(self):
