@@ -20,11 +20,10 @@ import skimage.transform
 from dataloader import datalist as ls
 from dataloader import loader as DA
 from dataloader import preprocess, readpfm
-from models import stackhourglass_prob
+from models import basic, stackhourglass_prob
 from unsuper_prob_utils import criterion1_prob, criterion2, criterion3, criterion4, \
                           evaluate, evaluate_kitti, predict,    \
                           WrappedModel
-import IPython, cv2, glob, copy
 
 # set gpu id used
 # os.environ["CUDA_VISIBLE_DEVICES"] = "3,4"
@@ -63,7 +62,7 @@ def train(imgL, imgC, imgR, args, Test=False):
         # outputL_rot = torch.unsqueeze(outputL_rot, 1)
         outputL = outputL_rot.flip(1).flip(2)
 
-    loss2 = criterion2(outputR, outputL, outputR_var, outputL_var)
+    loss2 = criterion2(outputR, outputL, outputR_var, outputL_var, args)
     
     # appearance loss
     loss1, loss4, imgR2C, imgL2C, _, _ = criterion1_prob(
@@ -116,6 +115,8 @@ if __name__ == '__main__':
                     help='previous model to resume (default: None)')
     parser.add_argument('--name', default='1', 
                     help='name for saving log')
+    parser.add_argument('--prob_mode', type=int, default=2, 
+                    help='name for saving log')
     
 
     args = parser.parse_args()
@@ -135,7 +136,7 @@ if __name__ == '__main__':
         os.makedirs(output_path + 'eval/')
 
     if args.model == 'stackhourglass':
-        model = stackhourglass_prob(args.maxdisp)
+        model = stackhourglass_prob(args.maxdisp, args.prob_mode)
     elif args.model == 'basic':
         model = basic(args.maxdisp)
     else:

@@ -71,69 +71,76 @@ def criterion1_prob(imgC, imgR, imgL, outputR, outputR_var, outputL, outputL_var
         ssim_loss = pytorch_ssim.SSIM(window_size = SSIM_WIN)
     else:
         ssim_loss = pytorch_ssim.SSIM(window_size = imgC.shape[2])
-
-    # imgC_gx, imgC_gy = gradient_xy(imgC)
-    # imgR2C_gx, imgR2C_gy = gradient_xy(imgR2C)
-    # imgL2C_gx, imgL2C_gy = gradient_xy(imgL2C)
+    
+    prob_mode = args.prob_mode
 
     if crop_edge == 0:
         diff_ssim = (1 - ssim_loss(imgC, imgR2C)) / 2.0 + \
                     (1 - ssim_loss(imgC, imgL2C)) / 2.0 + \
                     (1 - ssim_loss(imgC, imgR2C2)) / 2.0 + \
                     (1 - ssim_loss(imgC, imgL2C2)) / 2.0
-        # diff_L1 = (F.smooth_l1_loss(imgC, imgR2C, reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC, imgL2C, reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC, imgR2C2, reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC, imgL2C2, reduction='mean'))
-        diff_L1 = Loss_prob(imgR2C, imgC, outputR_var) + \
-                  Loss_prob(imgL2C, imgC, outputL_var) + \
-                  Loss_prob(imgR2C2, imgC, outputL_var) + \
-                  Loss_prob(imgL2C2, imgC, outputR_var)
+        if prob_mode == 1:
+            diff_L1 = Loss_prob(imgR2C, imgC, outputR_var) + \
+                    Loss_prob(imgL2C, imgC, outputL_var) + \
+                    Loss_prob(imgR2C2, imgC, outputL_var) + \
+                    Loss_prob(imgL2C2, imgC, outputR_var)
+        elif prob_mode == 2:
+            diff_L1 = (F.smooth_l1_loss(imgC, imgR2C, reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC, imgL2C, reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC, imgR2C2, reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC, imgL2C2, reduction='mean'))
+        
     else:
         diff_ssim = (1 - ssim_loss(imgC[:,:,:,crop_edge:], imgR2C[:,:,:,crop_edge:])) / 2.0 + \
                     (1 - ssim_loss(imgC[:,:,:,:-crop_edge], imgL2C[:,:,:,:-crop_edge])) / 2.0 + \
                     (1 - ssim_loss(imgC[:,:,:,crop_edge:], imgR2C2[:,:,:,crop_edge:])) / 2.0 + \
                     (1 - ssim_loss(imgC[:,:,:,:-crop_edge], imgL2C2[:,:,:,:-crop_edge])) / 2.0
-        # diff_L1 = (F.smooth_l1_loss(imgC[:,:,:,crop_edge:], imgR2C[:,:,:,crop_edge:], reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC[:,:,:,:-crop_edge], imgL2C[:,:,:,:-crop_edge], reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC[:,:,:,crop_edge:], imgR2C2[:,:,:,crop_edge:], reduction='mean')) + \
-        #           (F.smooth_l1_loss(imgC[:,:,:,:-crop_edge], imgL2C2[:,:,:,:-crop_edge], reduction='mean'))
-        diff_L1 = Loss_prob(imgR2C[:,:,:,crop_edge:], imgC[:,:,:,crop_edge:], outputR_var[:,:,crop_edge:]) + \
+        if prob_mode == 1:
+            diff_L1 = Loss_prob(imgR2C[:,:,:,crop_edge:], imgC[:,:,:,crop_edge:], outputR_var[:,:,crop_edge:]) + \
                   Loss_prob(imgL2C[:,:,:,:-crop_edge], imgC[:,:,:,:-crop_edge], outputL_var[:,:,:-crop_edge]) + \
                   Loss_prob(imgR2C2[:,:,:,crop_edge:], imgC[:,:,:,crop_edge:], outputL_var[:,:,crop_edge:]) + \
                   Loss_prob(imgL2C2[:,:,:,:-crop_edge], imgC[:,:,:,:-crop_edge], outputR_var[:,:,:-crop_edge])
-    
-    # loss1 = 1.0/4 * (alpha * diff_ssim + (1-alpha) * diff_L1 * 0.2)
+        elif prob_mode == 2:
+            diff_L1 = (F.smooth_l1_loss(imgC[:,:,:,crop_edge:], imgR2C[:,:,:,crop_edge:], reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC[:,:,:,:-crop_edge], imgL2C[:,:,:,:-crop_edge], reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC[:,:,:,crop_edge:], imgR2C2[:,:,:,crop_edge:], reduction='mean')) + \
+                    (F.smooth_l1_loss(imgC[:,:,:,:-crop_edge], imgL2C2[:,:,:,:-crop_edge], reduction='mean'))
+        
+    if prob_mode == 1:
+        loss1 = 1.0/4 * diff_ssim
 
-    loss1 = 1.0/4 * diff_ssim
+        varR_gx, varR_gy = gradient_xy(outputR_var.unsqueeze(1)*50)
+        # varL_gx, varL_gy = gradient_xy(outputL_var.unsqueeze(1)*50)
+        intensity_gx, intensity_gy = gradient_xy(imgC)
+        weights_x = torch.exp(-10 * torch.abs(intensity_gx).mean(1).unsqueeze(1))
+        weights_y = torch.exp(-10 * torch.abs(intensity_gy).mean(1).unsqueeze(1))
+        smoothness_x = torch.abs(varR_gx) * weights_x #+ torch.abs(varL_gx) * weights_x
+        smoothness_y = torch.abs(varR_gy) * weights_y #+ torch.abs(varL_gy) * weights_y
+        var_smooth = smoothness_x.mean() + smoothness_y.mean()
+        loss4 = 0.01 * diff_L1 + 0.001 * var_smooth
 
-    varR_gx, varR_gy = gradient_xy(outputR_var.unsqueeze(1)*50)
-    # varL_gx, varL_gy = gradient_xy(outputL_var.unsqueeze(1)*50)
-    intensity_gx, intensity_gy = gradient_xy(imgC)
-    weights_x = torch.exp(-10 * torch.abs(intensity_gx).mean(1).unsqueeze(1))
-    weights_y = torch.exp(-10 * torch.abs(intensity_gy).mean(1).unsqueeze(1))
-    smoothness_x = torch.abs(varR_gx) * weights_x #+ torch.abs(varL_gx) * weights_x
-    smoothness_y = torch.abs(varR_gy) * weights_y #+ torch.abs(varL_gy) * weights_y
-    var_smooth = smoothness_x.mean() + smoothness_y.mean()
-
-    loss4 = 0.01 * diff_L1 + 0.001 * var_smooth
-    # print('%.4f, %.4f, %.4f'%(loss1.item(), 0.005 * diff_L1.item(), 0.001 * var_smooth.item()))
-    # loss4 = torch.Tensor([0]).cuda()
+    elif prob_mode == 2:
+        loss1 = 1.0/4 * (alpha * diff_ssim + (1-alpha) * diff_L1 * 0.2)
+        loss4 = torch.Tensor([0]).cuda()
 
     return loss1, loss4, imgR2C, imgL2C, imgC, outputR
                 
 
 # loss2
 # consistency loss the difference between left output and right output
-def criterion2(R, L, R_var=None, L_var=None):
+def criterion2(R, L, R_var=None, L_var=None, args=None):
     tau = 10    # truncation for occluded region
 
     # ssim_loss = pytorch_ssim.SSIM(window_size = 11)
     # ssimloss = (1 - ssim_loss(R.unsqueeze(1), L.unsqueeze(1))) / 2.0
-    if(R_var is None):
+    if (R_var is None):
         return F.smooth_l1_loss(R, L, reduction='none').clamp(min=0, max=tau).mean()
 
-    thresh = 1  # 0.2
+    prob_mode = args.prob_mode
+    if prob_mode == 1:
+        thresh = 1  
+    elif prob_mode == 2:
+        thresh = 0.2
 
     mask = (R_var < thresh) & (L_var < thresh)
     R_mask = (R_var > thresh) & (L_var < thresh/2.0)
@@ -143,7 +150,6 @@ def criterion2(R, L, R_var=None, L_var=None):
     l2 = F.smooth_l1_loss(R[R_mask], L.detach()[R_mask], reduction='none').clamp(min=0, max=tau)
     l3 = F.smooth_l1_loss(R.detach()[L_mask], L[L_mask], reduction='none').clamp(min=0, max=tau)
 
-    # L1loss = F.smooth_l1_loss(R, L, reduction='none').clamp(min=0, max=tau).mean()
     # print "%.2f, %.2f, %.2f" % (100.0*len(l1)/R.shape.numel(), 
     #                             100.0*len(l2)/R.shape.numel(), 
     #                             100.0*len(l3)/R.shape.numel())

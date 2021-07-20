@@ -5,7 +5,8 @@ import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
 import math
-from submodule import *
+from .submodule import *
+
 
 class PSMNet(nn.Module):
     def __init__(self, maxdisp):

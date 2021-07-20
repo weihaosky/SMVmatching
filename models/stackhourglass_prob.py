@@ -5,8 +5,8 @@ import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
 import math
-from submodule import *
-import IPython
+from .submodule import *
+
 
 class hourglass(nn.Module):
     def __init__(self, inplanes):
@@ -51,9 +51,10 @@ class hourglass(nn.Module):
         return out, pre, post
 
 class PSMNet(nn.Module):
-    def __init__(self, maxdisp):
+    def __init__(self, maxdisp, prob_mode):
         super(PSMNet, self).__init__()
         self.maxdisp = maxdisp
+        self.prob_mode = prob_mode
 
         self.feature_extraction = feature_extraction()
 
@@ -160,11 +161,13 @@ class PSMNet(nn.Module):
 
         prob_sum = 4 * F.avg_pool3d(F.pad(pred3_prob.unsqueeze(1), pad=(0,0,0,0,1,2)), (4,1,1), stride=1, padding=0).squeeze(1)
         disp_index = pred3.long()
-        # confidence = torch.gather(prob_sum, 1, disp_index.unsqueeze(1)).squeeze(1)
-        # var3 = 1 - confidence
-
-        var3 = var_regression(self.maxdisp)(cost3)
-        var3 = torch.squeeze(var3, 1)
+        
+        if self.prob_mode == 1:
+            var3 = var_regression(self.maxdisp)(cost3)
+            var3 = torch.squeeze(var3, 1)
+        elif self.prob_mode == 2:
+            confidence = torch.gather(prob_sum, 1, disp_index.unsqueeze(1)).squeeze(1)
+            var3 = 1 - confidence
 
         if self.training:
             return None, None, pred3, var3
