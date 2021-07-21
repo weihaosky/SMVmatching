@@ -137,7 +137,7 @@ if __name__ == '__main__':
         print('no model')
 
     if args.cuda:
-        model = nn.DataParallel(model, device_ids=[0, 1])
+        model = nn.DataParallel(model, device_ids=[0, 1, 2, 3])
         model.cuda()
 
     epoch_begin = 0
@@ -252,6 +252,26 @@ if __name__ == '__main__':
 
         if epoch % 10 == 0:
             torch.save(model.state_dict(), log_path + 'model' + str(epoch) + '.pth')
+
+            # --------------- evaluate kitti2015 ---------------------
+            kitti_train = os.listdir(args.evalpath + 'KITTI2015/disp_occ_0/')
+            eval_res = []
+            for img_name in kitti_train:
+                img1 = processed1(DA.default_loader(args.evalpath + 'KITTI2015/image_2/' + img_name)).numpy()
+                img2 = processed1(DA.default_loader(args.evalpath + 'KITTI2015/image_3/' + img_name)).numpy()
+                gt_noc = cv2.imread(args.evalpath + 'KITTI2015/disp_noc_0/' + img_name, cv2.IMREAD_ANYDEPTH)/256.0
+                gt_occ = cv2.imread(args.evalpath + 'KITTI2015/disp_occ_0/' + img_name, cv2.IMREAD_ANYDEPTH)/256.0
+                with torch.no_grad():
+                    res, disp, var = evaluate_kitti(model, img1, img2, gt_occ, gt_noc, args, maxd=160)
+                cv2.imwrite(output_path + 'eval/' + img_name, (disp*256).astype(np.uint16))
+                cv2.imwrite(output_path + 'eval/' + img_name.split('.')[0] + '_var.png', var*255)
+                eval_res.append(res)
+            eval_res = np.array(eval_res).mean(0)
+            eval_record_kitti.append(eval_res)
+            print('epoch %d train occ bad3 = %.4f, noc bad3 = %.4f' % (epoch, eval_res[0], eval_res[1]) )
+            with open(log_path + "loss.log", "a") as file:
+                file.write( 'epoch %d train occ bad3 = %.4f, noc bad3 = %.4f \n' % (epoch, eval_res[0], eval_res[1]) )
+            torch.cuda.empty_cache()
 
 
 
