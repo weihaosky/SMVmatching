@@ -7,7 +7,7 @@ This is the official implementation code for SMVmatching -- "Stereo Matching by 
 **IROS2021** <br />
 **[[Paper](https://arxiv.org/pdf/2104.04170.pdf)] [[Project Page](https://sites.google.com/view/multiscopic)]** <br />
 
-![Alt text](pictures/camera.png?raw=true "Title")
+<img src="pictures/camera.png" alt="camera" width="600"/>
 
 ### Bibtex
 If you find this code useful, please consider citing:
