@@ -55,6 +55,8 @@ class PSMNet(nn.Module):
         super(PSMNet, self).__init__()
         self.maxdisp = maxdisp
         self.prob_mode = prob_mode
+        if self.prob_mode == 1:
+            self.var_regress = var_regression(self.maxdisp)
 
         self.feature_extraction = feature_extraction()
 
@@ -163,7 +165,7 @@ class PSMNet(nn.Module):
         disp_index = pred3.long()
         
         if self.prob_mode == 1:
-            var3 = var_regression(self.maxdisp)(cost3)
+            var3 = self.var_regress(cost3)
             var3 = torch.squeeze(var3, 1)
         elif self.prob_mode == 2:
             confidence = torch.gather(prob_sum, 1, disp_index.unsqueeze(1)).squeeze(1)
