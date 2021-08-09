@@ -182,7 +182,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.999))
 
     # loss weights
-    loss_w = [1, 0.01, 0.03, 0]
+    loss_w = [1, 0.03, 0.03, 0]
 
     print('loss_w:', loss_w)
 
@@ -193,6 +193,7 @@ if __name__ == '__main__':
     eval_record_kitti = []
     start_full_time = time.time()
     Test_epoch = 10
+    Eval_epoch = 10
 
     for epoch in range(epoch_begin+1, args.epochs+1):
         total_train_loss = 0
@@ -259,7 +260,7 @@ if __name__ == '__main__':
                     % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3], loss_mean[4]))
 
 
-        if epoch % 10 == 0:
+        if epoch % Eval_epoch == 0:
             torch.save(model.state_dict(), log_path + 'model' + str(epoch) + '.pth')
 
             # --------------- evaluate kitti2015 ---------------------

@@ -186,6 +186,7 @@ if __name__ == '__main__':
     eval_record_kitti = []
     start_full_time = time.time()
     Test_epoch = 10
+    Eval_epoch = 10
 
     for epoch in range(epoch_begin+1, args.epochs+1):
         total_train_loss = 0
@@ -250,7 +251,7 @@ if __name__ == '__main__':
                 file.write('epoch %d test loss = %.3f, loss1 = %.3f, loss2 = %.3f, loss3 = %.3f \n'
                     % (epoch, loss_mean[0], loss_mean[1], loss_mean[2], loss_mean[3]) )
 
-        if epoch % 10 == 0:
+        if epoch % Eval_epoch == 0:
             torch.save(model.state_dict(), log_path + 'model' + str(epoch) + '.pth')
 
             # --------------- evaluate kitti2015 ---------------------
@@ -262,9 +263,8 @@ if __name__ == '__main__':
                 gt_noc = cv2.imread(args.evalpath + 'KITTI2015/disp_noc_0/' + img_name, cv2.IMREAD_ANYDEPTH)/256.0
                 gt_occ = cv2.imread(args.evalpath + 'KITTI2015/disp_occ_0/' + img_name, cv2.IMREAD_ANYDEPTH)/256.0
                 with torch.no_grad():
-                    res, disp, var = evaluate_kitti(model, img1, img2, gt_occ, gt_noc, args, maxd=160)
+                    res, disp = evaluate_kitti(model, img1, img2, gt_occ, gt_noc, args, maxd=160)
                 cv2.imwrite(output_path + 'eval/' + img_name, (disp*256).astype(np.uint16))
-                cv2.imwrite(output_path + 'eval/' + img_name.split('.')[0] + '_var.png', var*255)
                 eval_res.append(res)
             eval_res = np.array(eval_res).mean(0)
             eval_record_kitti.append(eval_res)

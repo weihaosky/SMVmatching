@@ -7,8 +7,10 @@ This is the official implementation code for SMVmatching -- "Stereo Matching by 
 **IROS2021** <br />
 **[[Paper](https://arxiv.org/pdf/2104.04170.pdf)] [[Project Page](https://sites.google.com/view/multiscopic)]** <br />
 
-<img src="pictures/camera.png" alt="camera" width="240"/>
-<img src="pictures/framework.png" alt="framework" width="400"/>
+<div align=center>
+<img src="pictures/camera.png" alt="camera" width="250"/>
+<img src="pictures/framework.png" alt="framework" width="500"/>
+</div>
 
 ### Bibtex
 If you find this code useful, please consider citing:
@@ -60,14 +62,21 @@ dataset/
 
 ### Pretrained models
 
-[Model](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EV8ZiijFyL5PqS9lRZ5wEccBbrUL83oToGl0Aab0Sbo4Lw?e=oNhyxq)
+<!-- [Model](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EV8ZiijFyL5PqS9lRZ5wEccBbrUL83oToGl0Aab0Sbo4Lw?e=oNhyxq)
+
+[Model_stage1](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EQFnFpriyGlNq2eJZcXHIQwBjCOzvxypNLdVys_IVcXjLg?e=qGlWQW) -->
 
 Results on KITTI 2015:
 
-| <sub> Dataset </sub> | <sub>D1-all</sub> | <sub>D1-noc</sub> | <sub>D1-occ</sub> |
-|:-----------:|:----------:|:----------:|:------------:|
-| <sub> Train set </sub> | <sub>3.82%</sub> | <sub>3.69%</sub> | <sub>10.87%</sub> |
-| <sub> Online Test set </sub> | <sub>4.43%</sub> | <sub>4.20%</sub> | <sub>-</sub> |
+| <sub> Model </sub> | <sub> Dataset </sub> | <sub>D1-all</sub> | <sub>D1-noc</sub> | <sub>D1-occ</sub> |
+|:-----------:|:-----------:|:----------:|:----------:|:------------:|
+| <sub> [Model1](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EV8ZiijFyL5PqS9lRZ5wEccBbrUL83oToGl0Aab0Sbo4Lw?e=oNhyxq) </sub> | <sub> Train set </sub> | <sub>4.23%</sub> | <sub>4.09%</sub> | <sub>-</sub> |
+| <sub> [Model2](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EQFnFpriyGlNq2eJZcXHIQwBjCOzvxypNLdVys_IVcXjLg?e=qGlWQW) </sub> | <sub> Train set </sub> | <sub>3.82%</sub> | <sub>3.69%</sub> | <sub>10.87%</sub> |
+| <sub> [Model2](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wyuanaa_connect_ust_hk/EQFnFpriyGlNq2eJZcXHIQwBjCOzvxypNLdVys_IVcXjLg?e=qGlWQW) </sub> | <sub> Online Test set </sub> | <sub>4.43%</sub> | <sub>4.20%</sub> | <sub>-</sub> |
+
+Model1: model without probability uncertainty
+
+Model2: model with probability uncertainty
 
 ---
 
