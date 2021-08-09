@@ -1,4 +1,4 @@
-# Self-supervised Multiscopic Vision Matching
+# Stereo Matching by Self-supervision of Multiscopic Vision
 
 This is the official implementation code for SMVmatching -- "Stereo Matching by Self-supervision of Multiscopic Vision". For technical details, please refer to :
 
